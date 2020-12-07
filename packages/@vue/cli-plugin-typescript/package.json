@@ -1,0 +1,56 @@
+{
+  "name": "@vue/cli-plugin-typescript",
+  "version": "4.5.8",
+  "description": "typescript plugin for vue-cli",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vuejs/vue-cli.git",
+    "directory": "packages/@vue/cli-plugin-typescript"
+  },
+  "keywords": [
+    "vue",
+    "cli",
+    "typescript"
+  ],
+  "author": "Evan You",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/vuejs/vue-cli/issues"
+  },
+  "homepage": "https://github.com/vuejs/vue-cli/tree/dev/packages/@vue/cli-plugin-typescript#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@types/webpack-env": "^1.15.2",
+    "@vue/cli-shared-utils": "^4.5.8",
+    "babel-loader": "^8.1.0",
+    "cache-loader": "^4.1.0",
+    "fork-ts-checker-webpack-plugin": "^5.0.11",
+    "globby": "^9.2.0",
+    "thread-loader": "^3.0.0",
+    "ts-loader": "^8.0.5",
+    "webpack": "^5.0.0",
+    "yorkie": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@vue/cli-service": "^3.0.0 || ^4.0.0-0",
+    "@vue/compiler-sfc": "^3.0.0-beta.14",
+    "typescript": ">=2"
+  },
+  "peerDependenciesMeta": {
+    "@vue/compiler-sfc": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.11",
+    "@types/jest": "^24.0.19",
+    "@types/mocha": "^7.0.2",
+    "jscodeshift": "^0.10.0",
+    "typescript": "~3.9.3",
+    "vue-class-component": "^7.2.3",
+    "vue-property-decorator": "^8.4.2"
+  }
+}
