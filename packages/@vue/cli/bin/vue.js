@@ -5,8 +5,14 @@
 
 const { chalk, semver } = require('@vue/cli-shared-utils')
 const requiredVersion = require('../package.json').engines.node
+// 字符串比对
 const leven = require('leven')
 
+/**
+ * @function 校验本地Node版本
+ * @param {string} wanted 最低Node版本要求
+ * @param {string} id 包名
+ */
 function checkNodeVersion (wanted, id) {
   if (!semver.satisfies(process.version, wanted, { includePrerelease: true })) {
     console.log(chalk.red(
@@ -21,7 +27,9 @@ checkNodeVersion(requiredVersion, '@vue/cli')
 
 const fs = require('fs')
 const path = require('path')
+// Windows 中做路径转换
 const slash = require('slash')
+// 命令行参数解析
 const minimist = require('minimist')
 
 // enter debug mode when creating test repo
@@ -34,13 +42,17 @@ if (
   process.env.VUE_CLI_DEBUG = true
 }
 
+// Node.js 命令行解决方案
 const program = require('commander')
 const loadCommand = require('../lib/util/loadCommand')
 
+// CLI 命令
 program
   .version(`@vue/cli ${require('../package').version}`)
   .usage('<command> [options]')
 
+// TODO: Read this part.
+// create 命令(创建项目)
 program
   .command('create <app-name>')
   .description('create a new project powered by vue-cli-service')
@@ -58,18 +70,25 @@ program
   .option('-b, --bare', 'Scaffold project without beginner instructions')
   .option('--skipGetStarted', 'Skip displaying "Get started" instructions')
   .action((name, cmd) => {
+    console.log(name)
     const options = cleanArgs(cmd)
 
+    // 命令行参数超过一个时输出提示
     if (minimist(process.argv.slice(3))._.length > 1) {
       console.log(chalk.yellow('\n Info: You provided more than one argument. The first one will be used as the app\'s name, the rest are ignored.'))
     }
+    // 默认初始化 git
     // --git makes commander to default git to true
     if (process.argv.includes('-g') || process.argv.includes('--git')) {
       options.forceGit = true
     }
+    // 查看默认/用户自定义选项
+    console.log(chalk.yellow('create options: '), options)
+    // 调用 ../lib/create 创建项目
     require('../lib/create')(name, options)
   })
 
+// add 命令(添加插件)
 program
   .command('add <plugin> [pluginOptions]')
   .description('install a plugin and invoke its generator in an already created project')
@@ -101,6 +120,7 @@ program
     require('../lib/inspect')(paths, cleanArgs(cmd))
   })
 
+// serve 命令(启动 DevServer)
 program
   .command('serve [entry]')
   .description('serve a .js or .vue file in development mode with zero config')
@@ -111,6 +131,7 @@ program
     loadCommand('serve', '@vue/cli-service-global').serve(entry, cleanArgs(cmd))
   })
 
+// build 命令(打包构建)
 program
   .command('build [entry]')
   .description('build a .js or .vue file in production mode with zero config')
@@ -121,6 +142,7 @@ program
     loadCommand('build', '@vue/cli-service-global').build(entry, cleanArgs(cmd))
   })
 
+// ui 命令(启动 GUI)
 program
   .command('ui')
   .description('start and open the vue-cli ui')
@@ -163,6 +185,7 @@ program
     require('../lib/outdated')(cleanArgs(cmd))
   })
 
+// upgrade 命令(更新 Vue CLI 或插件)
 program
   .command('upgrade [plugin-name]')
   .description('(experimental) upgrade vue cli service / plugins')
@@ -184,6 +207,7 @@ program
     require('../lib/migrate')(packageName, cleanArgs(cmd))
   })
 
+// info 命令(输出环境信息)
 program
   .command('info')
   .description('print debugging information about your environment')
@@ -248,6 +272,7 @@ if (!process.argv.slice(2).length) {
   program.outputHelp()
 }
 
+// 建议命令(输入未知命令时调用)
 function suggestCommands (unknownCommand) {
   const availableCommands = program.commands.map(cmd => cmd._name)
 
@@ -265,13 +290,16 @@ function suggestCommands (unknownCommand) {
   }
 }
 
+// 字符串转换(kebab-case -> camelCase)
 function camelize (str) {
-  return str.replace(/-(\w)/g, (_, c) => c ? c.toUpperCase() : '')
+  const afterConvert = str.replace(/-(\w)/g, (_, c) => c ? c.toUpperCase() : '')
+  return afterConvert
 }
 
 // commander passes the Command object itself as options,
 // extract only actual options into a fresh object.
 function cleanArgs (cmd) {
+  console.log(chalk.yellow('cmd options: '), cmd.options)
   const args = {}
   cmd.options.forEach(o => {
     const key = camelize(o.long.replace(/^--/, ''))
@@ -281,5 +309,6 @@ function cleanArgs (cmd) {
       args[key] = cmd[key]
     }
   })
+  console.log(chalk.yellow('args: '), args)
   return args
 }

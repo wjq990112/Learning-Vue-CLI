@@ -1,7 +1,9 @@
 const { execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
+// LRU 缓存
 const LRU = require('lru-cache')
+// 语义化版本控制
 const semver = require('semver')
 
 let _hasYarn
@@ -16,6 +18,10 @@ const _gitProjects = new LRU({
 })
 
 // env detection
+/**
+ * @function 判断本地环境是否已安装Yarn
+ * @returns {boolean}
+ */
 exports.hasYarn = () => {
   if (process.env.VUE_CLI_TEST) {
     return true
@@ -31,6 +37,11 @@ exports.hasYarn = () => {
   }
 }
 
+/**
+ * @function 判断本地项目中是否已使用Yarn
+ * @param {string} cwd 本地项目路径
+ * @returns {unknown | boolean}
+ */
 exports.hasProjectYarn = (cwd) => {
   if (_yarnProjects.has(cwd)) {
     return checkYarn(_yarnProjects.get(cwd))
@@ -42,11 +53,24 @@ exports.hasProjectYarn = (cwd) => {
   return checkYarn(result)
 }
 
+/**
+ * @function Yarn校验
+ * @param {boolean} result
+ * @returns {boolean}
+ */
 function checkYarn (result) {
-  if (result && !exports.hasYarn()) throw new Error(`The project seems to require yarn but it's not installed.`)
+  if (result && !exports.hasYarn()) {
+    throw new Error(
+      `The project seems to require yarn but it's not installed.`
+    )
+  }
   return result
 }
 
+/**
+ * @function 检测本地环境是否已安装Git
+ * @returns {boolean}
+ */
 exports.hasGit = () => {
   if (process.env.VUE_CLI_TEST) {
     return true
@@ -62,6 +86,11 @@ exports.hasGit = () => {
   }
 }
 
+/**
+ * @function 检测本地项目是否已使用Git
+ * @param {string} cwd 本地项目路径
+ * @returns {boolean}
+ */
 exports.hasProjectGit = (cwd) => {
   if (_gitProjects.has(cwd)) {
     return _gitProjects.get(cwd)
@@ -125,7 +154,11 @@ exports.hasProjectPnpm = (cwd) => {
 
 function checkPnpm (result) {
   if (result && !exports.hasPnpm3OrLater()) {
-    throw new Error(`The project seems to require pnpm${_hasPnpm ? ' >= 3' : ''} but it's not installed.`)
+    throw new Error(
+      `The project seems to require pnpm${
+        _hasPnpm ? ' >= 3' : ''
+      } but it's not installed.`
+    )
   }
   return result
 }
@@ -158,7 +191,9 @@ function tryRun (cmd) {
     return execSync(cmd, {
       stdio: [0, 'pipe', 'ignore'],
       timeout: 10000
-    }).toString().trim()
+    })
+      .toString()
+      .trim()
   } catch (e) {
     return ''
   }
@@ -169,15 +204,24 @@ function getLinuxAppVersion (binary) {
 }
 
 function getMacAppVersion (bundleIdentifier) {
-  const bundlePath = tryRun(`mdfind "kMDItemCFBundleIdentifier=='${bundleIdentifier}'"`)
+  const bundlePath = tryRun(
+    `mdfind "kMDItemCFBundleIdentifier=='${bundleIdentifier}'"`
+  )
 
   if (bundlePath) {
-    return tryRun(`/usr/libexec/PlistBuddy -c Print:CFBundleShortVersionString ${
-      bundlePath.replace(/(\s)/g, '\\ ')
-    }/Contents/Info.plist`)
+    return tryRun(
+      `/usr/libexec/PlistBuddy -c Print:CFBundleShortVersionString ${bundlePath.replace(
+        /(\s)/g,
+        '\\ '
+      )}/Contents/Info.plist`
+    )
   }
 }
 
+/**
+ * @function 获取已安装的浏览器(仅支持Chrome和Firefox)
+ * @returns {object}
+ */
 exports.getInstalledBrowsers = () => {
   if (hasCheckedBrowsers) {
     return browsers
@@ -193,11 +237,13 @@ exports.getInstalledBrowsers = () => {
   } else if (exports.isWindows) {
     // get chrome stable version
     // https://stackoverflow.com/a/51773107/2302258
-    const chromeQueryResult = tryRun(
-      'reg query "HKLM\\Software\\Google\\Update\\Clients\\{8A69D345-D564-463c-AFF1-A69D9E530F96}" /v pv /reg:32'
-    ) || tryRun(
-      'reg query "HKCU\\Software\\Google\\Update\\Clients\\{8A69D345-D564-463c-AFF1-A69D9E530F96}" /v pv /reg:32'
-    )
+    const chromeQueryResult =
+      tryRun(
+        'reg query "HKLM\\Software\\Google\\Update\\Clients\\{8A69D345-D564-463c-AFF1-A69D9E530F96}" /v pv /reg:32'
+      ) ||
+      tryRun(
+        'reg query "HKCU\\Software\\Google\\Update\\Clients\\{8A69D345-D564-463c-AFF1-A69D9E530F96}" /v pv /reg:32'
+      )
     if (chromeQueryResult) {
       const matched = chromeQueryResult.match(/REG_SZ\s+(\S*)$/)
       browsers.chrome = matched && matched[1]
