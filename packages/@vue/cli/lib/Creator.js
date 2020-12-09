@@ -1,8 +1,11 @@
 const path = require('path')
 const debug = require('debug')
+// 命令行交互
 const inquirer = require('inquirer')
+// 事件分发(发布-订阅模式)
 const EventEmitter = require('events')
 const Generator = require('./Generator')
+// 深拷贝
 const cloneDeep = require('lodash.clonedeep')
 const sortObject = require('./util/sortObject')
 const getVersions = require('./util/getVersions')
@@ -43,43 +46,85 @@ const {
   loadModule
 } = require('@vue/cli-shared-utils')
 
+// 三种默认模板创建方式 1.Vue2 Default 2.Vue3 Default 3.Manually
+// 判断是否为 3.Manually 手动选择 features 的模式
 const isManualMode = answers => answers.preset === '__manual__'
 
 module.exports = class Creator extends EventEmitter {
+  /**
+   * @function Creator构造函数
+   * @param {string} name 项目名称
+   * @param {string} context 项目目标文件夹
+   * @param {string[]} promptModules features 可选项(插件机制核心之一)
+   */
   constructor (name, context, promptModules) {
     super()
 
+    // 项目名称
     this.name = name
+    // 项目目标文件夹
     this.context = process.env.VUE_CLI_CONTEXT = context
+    // 获取预设配置及文字提示
     const { presetPrompt, featurePrompt } = this.resolveIntroPrompts()
 
     this.presetPrompt = presetPrompt
     this.featurePrompt = featurePrompt
+    // 获取手动配置及文字提示(选择 babel/eslint 配置存放位置 选择是否保存本次手动配置 选择包管理工具 yarn/pnpm/npm)
     this.outroPrompts = this.resolveOutroPrompts()
+    // 已被注入的插件列表
     this.injectedPrompts = []
+    // 插件注入后的回调(插件注入后可能选择不同的方案 例如 unit test 可选择 mocha + chai/jest 需要执行回调进行处理)
     this.promptCompleteCbs = []
+    // TODO: Read and understand this part.
     this.afterInvokeCbs = []
     this.afterAnyInvokeCbs = []
 
     this.run = this.run.bind(this)
 
+    // 为 creator 实例提供通用的插件注入及调用接口
     const promptAPI = new PromptModuleAPI(this)
+    // 遍历插件列表 为其提供调用接口(插件机制核心之一)
     promptModules.forEach(m => m(promptAPI))
   }
 
+  /**
+   * @function 创建项目
+   * @param {object} cliOptions 命令行参数
+   * @param {object} preset 预设配置
+   */
   async create (cliOptions = {}, preset = null) {
     const isTestOrDebug = process.env.VUE_CLI_TEST || process.env.VUE_CLI_DEBUG
     const { run, name, context, afterInvokeCbs, afterAnyInvokeCbs } = this
 
+    // 预设配置未传入
     if (!preset) {
       if (cliOptions.preset) {
         // vue create foo --preset bar
+        // 从命令行读入用户输入的预设配置名称 到 ~/.vuerc 中查找对应名称的预设配置
         preset = await this.resolvePreset(cliOptions.preset, cliOptions.clone)
       } else if (cliOptions.default) {
         // vue create foo --default
+        // 使用默认预设配置
         preset = defaults.presets.default
       } else if (cliOptions.inlinePreset) {
         // vue create foo --inlinePreset {...}
+        // 从命令行读入用户输入的行内预设配置 JSON
+        // like this:
+        /*
+          {
+            "useConfigFiles": true,
+            "router": true,
+            "vuex": true,
+            "cssPreprocessor": "sass",
+            "plugins": {
+              "@vue/cli-plugin-babel": {},
+              "@vue/cli-plugin-eslint": {
+                "config": "airbnb",
+                "lintOn": ["commit"]
+              }
+            }
+          }
+         */
         try {
           preset = JSON.parse(cliOptions.inlinePreset)
         } catch (e) {
@@ -87,10 +132,12 @@ module.exports = class Creator extends EventEmitter {
           exit(1)
         }
       } else {
+        // 从命令行没有读入预设配置相关参数时使用交互式命令行获取预设配置
         preset = await this.promptAndResolvePreset()
       }
     }
 
+    // FIXME: Why deep clone?
     // clone before mutating
     preset = cloneDeep(preset)
     // inject core service
@@ -103,9 +150,11 @@ module.exports = class Creator extends EventEmitter {
     }
 
     // legacy support for router
+    // Vue Router 插件
     if (preset.router) {
       preset.plugins['@vue/cli-plugin-router'] = {}
 
+      // Vue Router History Mode
       if (preset.routerHistoryMode) {
         preset.plugins['@vue/cli-plugin-router'].historyMode = true
       }
@@ -115,6 +164,7 @@ module.exports = class Creator extends EventEmitter {
     // Currently we rely on the `plugins` object enumeration order,
     // which depends on the order of the field initialization.
     // FIXME: Remove this ugly hack after the plugin ordering API settled down
+    // 一段 hack 的代码 处理 TypeScript 和 Vue Router 插件之间的顺序
     if (preset.plugins['@vue/cli-plugin-router'] && preset.plugins['@vue/cli-plugin-typescript']) {
       const tmp = preset.plugins['@vue/cli-plugin-typescript']
       delete preset.plugins['@vue/cli-plugin-typescript']
@@ -122,10 +172,12 @@ module.exports = class Creator extends EventEmitter {
     }
 
     // legacy support for vuex
+    // Vuex 插件
     if (preset.vuex) {
       preset.plugins['@vue/cli-plugin-vuex'] = {}
     }
 
+    // 选择包管理工具 用户指定 -> 预设配置 -> yarn -> pnpm -> npm
     const packageManager = (
       cliOptions.packageManager ||
       loadOptions().packageManager ||
@@ -137,12 +189,14 @@ module.exports = class Creator extends EventEmitter {
     const pm = new PackageManager({ context, forcePackageManager: packageManager })
 
     log(`✨  Creating project in ${chalk.yellow(context)}.`)
+    // 分发 creation 事件
     this.emit('creation', { event: 'creating' })
 
     // get latest CLI plugin version
     const { latestMinor } = await getVersions()
 
     // generate package.json with plugin dependencies
+    // 生成 package.json
     const pkg = {
       name,
       version: '0.1.0',
@@ -150,7 +204,9 @@ module.exports = class Creator extends EventEmitter {
       devDependencies: {},
       ...resolvePkg(context)
     }
+    // 插件(依赖)列表
     const deps = Object.keys(preset.plugins)
+    // TODO: Keep on.
     deps.forEach(dep => {
       if (preset.plugins[dep]._isPreset) {
         return
@@ -400,13 +456,60 @@ module.exports = class Creator extends EventEmitter {
     return plugins
   }
 
+  // 获取预设配置
+  // 预设配置中存在与默认配置冲突的部分将会被默认配置覆盖
+  /*
+    {
+      default: {
+        vueVersion: '2',
+        useConfigFiles: false,
+        cssPreprocessor: undefined,
+        plugins: { '@vue/cli-plugin-babel': {}, '@vue/cli-plugin-eslint': [Object] }
+      },
+      __default_vue_3__: {
+        vueVersion: '3',
+        useConfigFiles: false,
+        cssPreprocessor: undefined,
+        plugins: { '@vue/cli-plugin-babel': {}, '@vue/cli-plugin-eslint': [Object] }
+      }
+    }
+    */
   getPresets () {
+    // 从 ~/.vuerc 中获取预设配置
+    /*
+      {
+        "useConfigFiles": true,
+        "router": true,
+        "vuex": true,
+        "cssPreprocessor": "sass",
+        "plugins": {
+          "@vue/cli-plugin-babel": {},
+          "@vue/cli-plugin-eslint": {
+            "config": "airbnb",
+            "lintOn": ["commit"]
+          }
+        }
+      }
+    */
     const savedOptions = loadOptions()
     return Object.assign({}, savedOptions.presets, defaults.presets)
   }
 
   resolveIntroPrompts () {
     const presets = this.getPresets()
+    // 生成预设配置选项列表
+    /*
+      [
+        {
+          name: 'Default ([Vue 2] babel, eslint)',
+          value: 'default'
+        },
+        {
+          name: 'Default (Vue 3 Preview) ([Vue 3 babel, eslint])',
+          value: '__default_vue_3__'
+        }
+      ]
+     */
     const presetChoices = Object.entries(presets).map(([name, preset]) => {
       let displayName = name
       if (name === 'default') {
@@ -420,6 +523,7 @@ module.exports = class Creator extends EventEmitter {
         value: name
       }
     })
+    // 预设配置选择文字提示
     const presetPrompt = {
       name: 'preset',
       type: 'list',
@@ -432,6 +536,7 @@ module.exports = class Creator extends EventEmitter {
         }
       ]
     }
+    // 手动模式 feature 选择文字提示
     const featurePrompt = {
       name: 'features',
       when: isManualMode,
@@ -481,6 +586,7 @@ module.exports = class Creator extends EventEmitter {
 
     // ask for packageManager once
     const savedOptions = loadOptions()
+    // 预设配置中无包管理工具配置 && 本地环境中存在 yarn/pnpm
     if (!savedOptions.packageManager && (hasYarn() || hasPnpm3OrLater())) {
       const packageManagerChoices = []
 

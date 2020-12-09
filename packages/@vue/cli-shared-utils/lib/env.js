@@ -19,7 +19,7 @@ const _gitProjects = new LRU({
 
 // env detection
 /**
- * @function 判断本地环境是否已安装Yarn
+ * @function 判断本地环境是否已安装yarn
  * @returns {boolean}
  */
 exports.hasYarn = () => {
@@ -38,7 +38,7 @@ exports.hasYarn = () => {
 }
 
 /**
- * @function 判断本地项目中是否已使用Yarn
+ * @function 判断本地项目中是否已使用yarn
  * @param {string} cwd 本地项目路径
  * @returns {unknown | boolean}
  */
@@ -54,7 +54,7 @@ exports.hasProjectYarn = (cwd) => {
 }
 
 /**
- * @function Yarn校验
+ * @function yarn校验
  * @param {boolean} result
  * @returns {boolean}
  */
@@ -68,7 +68,7 @@ function checkYarn (result) {
 }
 
 /**
- * @function 检测本地环境是否已安装Git
+ * @function 检测本地环境是否已安装git
  * @returns {boolean}
  */
 exports.hasGit = () => {
@@ -87,7 +87,7 @@ exports.hasGit = () => {
 }
 
 /**
- * @function 检测本地项目是否已使用Git
+ * @function 检测本地项目是否已使用git
  * @param {string} cwd 本地项目路径
  * @returns {boolean}
  */

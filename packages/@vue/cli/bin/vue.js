@@ -51,7 +51,6 @@ program
   .version(`@vue/cli ${require('../package').version}`)
   .usage('<command> [options]')
 
-// TODO: Read this part.
 // create 命令(创建项目)
 program
   .command('create <app-name>')
@@ -70,7 +69,6 @@ program
   .option('-b, --bare', 'Scaffold project without beginner instructions')
   .option('--skipGetStarted', 'Skip displaying "Get started" instructions')
   .action((name, cmd) => {
-    console.log(name)
     const options = cleanArgs(cmd)
 
     // 命令行参数超过一个时输出提示
@@ -82,9 +80,8 @@ program
     if (process.argv.includes('-g') || process.argv.includes('--git')) {
       options.forceGit = true
     }
-    // 查看默认/用户自定义选项
-    console.log(chalk.yellow('create options: '), options)
     // 调用 ../lib/create 创建项目
+    // { git: true }
     require('../lib/create')(name, options)
   })
 
@@ -299,7 +296,6 @@ function camelize (str) {
 // commander passes the Command object itself as options,
 // extract only actual options into a fresh object.
 function cleanArgs (cmd) {
-  console.log(chalk.yellow('cmd options: '), cmd.options)
   const args = {}
   cmd.options.forEach(o => {
     const key = camelize(o.long.replace(/^--/, ''))
@@ -309,6 +305,5 @@ function cleanArgs (cmd) {
       args[key] = cmd[key]
     }
   })
-  console.log(chalk.yellow('args: '), args)
   return args
 }
